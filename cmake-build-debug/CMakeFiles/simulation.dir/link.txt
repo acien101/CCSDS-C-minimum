@@ -1,0 +1,1 @@
+/usr/bin/cc -g   CMakeFiles/simulation.dir/main.c.o CMakeFiles/simulation.dir/CCSDS.c.o  -o simulation 

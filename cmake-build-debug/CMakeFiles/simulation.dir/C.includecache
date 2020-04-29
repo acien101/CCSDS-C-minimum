@@ -1,0 +1,20 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/acien101/gitRepos/edusat/simulation/CCSDS.h
+
+/home/acien101/gitRepos/edusat/simulation/main.c
+stdio.h
+-
+stdlib.h
+-
+CCSDS.h
+/home/acien101/gitRepos/edusat/simulation/CCSDS.h
+string.h
+-
+
