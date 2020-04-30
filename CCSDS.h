@@ -29,6 +29,12 @@ typedef struct {
     unsigned short length;
 } CCSDS_primary;
 
-char istelemetry(void);
+typedef struct{
+    CCSDS_primary primary_header;
+    void* data;
+} CCSDS_packet;
+
+void printData(CCSDS_packet *packet);
+void putData(FILE *fp, CCSDS_packet *packet);
 
 #endif

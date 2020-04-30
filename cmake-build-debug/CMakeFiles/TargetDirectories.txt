@@ -1,3 +1,0 @@
-/home/acien101/gitRepos/edusat/simulation/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/home/acien101/gitRepos/edusat/simulation/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/acien101/gitRepos/edusat/simulation/cmake-build-debug/CMakeFiles/simulation.dir

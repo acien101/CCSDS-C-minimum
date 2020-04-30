@@ -8,34 +8,31 @@ const int i = 1;
 #define is_bigendian() ( (*(char*)&i) == 0 )
 
 void printCCSDS(CCSDS_primary obj);
+void genRead();
+char readFile();
+
 
 int main() {
+    CCSDS_packet packet;
+    int num;
+    FILE *fp;
 
-    CCSDS_primary obj = {0b001,PACKET_TYPE_TELEMETRY, SECONDAY_HEADER_FLAG_NOTEXIST, 0b101, SEQUENCE_FLAG_UNSEGMENTED, 0b0, 0b10};
-    void* my_pointer = &obj;
-    /*
-    CCSDS_primary my_packet = {0b0, PACKET_TYPE_TELEMETRY, SECONDAY_HEADER_FLAG_EXIST, 0b101, SEQUENCE_FLAG_UNSEGMENTED, 0b0, 0b10};
-    CCSDS_primary src;
-    unsigned char my_bin_packet_c[6] = {0b00000001, 0b0, 0b0, 0b0, 0b0, 0b1};
+    if ((fp = fopen("../sample.bin","rb")) == NULL){
+        printf("Error! opening file");
 
-    printf("IS BIGENDIAN: %d \n", is_bigendian());
-
-    if (!is_bigendian()) {
-        memcpy(&src, my_bin_packet_c, sizeof(src));
-    } else {
-        unsigned char buff[6];
-        snprintf(buff, sizeof(my_bin_packet_c),"%c%c%c%c%c%c", my_bin_packet_c[0], my_bin_packet_c[1], my_bin_packet_c[2], my_bin_packet_c[3], my_bin_packet_c[5], my_bin_packet_c[4]);
-        memcpy(&src, buff, sizeof(src));
+        // Program exits if the file pointer returns NULL.
+        exit(1);
     }
 
-    */
+    unsigned char bu = 'a';
 
-    printCCSDS(obj);
+    fread(&(packet.primary_header), sizeof(packet.primary_header), 1, fp);
+    printCCSDS(packet.primary_header);
+    putData(fp, &packet);
+    printData(&packet);
 
-    printf("%d\n", sizeof(obj));
-    //printf("%d\n", sizeof(my_bin_packet_c));
-
-    return(0);
+    fclose(fp);
+    return 0;
 }
 
 
@@ -48,5 +45,42 @@ void printCCSDS(CCSDS_primary obj){
     printf("Sequence Flags: %d\n", obj.seq_flags);
     printf("Packet Sequence count: %d\n", obj.seq_cnt);
     printf("Packet Data length: %d\n", obj.length);
-    printf("BINARY FORMAT: \n")
+    //printf("BINARY FORMAT: \n", )
+}
+
+char readFile(){
+    CCSDS_primary my_packet;
+    int num;
+    FILE *fp;
+
+    if ((fp = fopen("ahora.bin","rb")) == NULL){
+        printf("Error! opening file");
+
+        // Program exits if the file pointer returns NULL.
+        exit(1);
+    }
+
+    fread(&my_packet, sizeof(my_packet), 1, fp);
+    printCCSDS(my_packet);
+
+    fclose(fp);
+    return 0;
+}
+
+void genFile(){
+    CCSDS_primary obj = {0b001,PACKET_TYPE_TELEMETRY, SECONDAY_HEADER_FLAG_NOTEXIST, 0b101, SEQUENCE_FLAG_UNSEGMENTED, 0b0, 0b11};
+    char data[3] = {'D', 'P', 'M'};
+    void* my_pointer = &obj;
+
+    printCCSDS(obj);
+
+    printf("%d\n", sizeof(obj));
+    printf("%d\n", sizeof(my_pointer));
+    //printf("%d\n", sizeof(my_bin_packet_c));
+
+    FILE *fp;
+
+    fp = fopen("ahora.bin", "w");
+    fwrite(&obj, sizeof(CCSDS_primary), 1, fp);
+    fclose(fp);
 }
