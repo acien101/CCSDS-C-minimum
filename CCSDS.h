@@ -15,11 +15,11 @@ enum PACKET_TYPE{
 #define SECONDAY_HEADER_FLAG_EXIST 0b1          // 4.1.2.3.3.2
 #define SECONDAY_HEADER_FLAG_NOTEXIST 0b0
 #define SEQUENCE_FLAG_CONT 0b00                 // 4.1.2.4.2.2 a)
-#define SEQUENCE_FLAG_FIRST 0b00                // 4.1.2.4.2.2 b)
-#define SEQUENCE_FLAG_LAST 0b00                 // 4.1.2.4.2.2 c)
-#define SEQUENCE_FLAG_UNSEGMENTED 0b00          // 4.1.2.4.2.2 d)
-#define SECONDARY_HEADER_LENTH 8                // Number of bytes of secondary header
-#define PRIMARY_HEADER_LENGTH 8                 // Number of bytes of primary header
+#define SEQUENCE_FLAG_FIRST 0b01                // 4.1.2.4.2.2 b)
+#define SEQUENCE_FLAG_LAST 0b10                 // 4.1.2.4.2.2 c)
+#define SEQUENCE_FLAG_UNSEGMENTED 0b11          // 4.1.2.4.2.2 d)
+#define SECONDARY_HEADER_LENGTH 8                // Number of bytes of secondary header
+#define PRIMARY_HEADER_LENGTH 6                 // Number of bytes of primary header
 
 typedef struct {
     unsigned short version : 3;
@@ -44,30 +44,88 @@ typedef struct {
 } CCSDS_secondary_header;
 
 typedef struct {
-    CCSDS_secondary_header secondaryHeader;
-    void* data;
+    CCSDS_secondary_header* secondaryHeader;
+    void* userData;
 } CCSDS_data_field;
 
 typedef struct{
-    CCSDS_primary_header primary_header;
-    CCSDS_data_field dataField;
+    CCSDS_primary_header* primary_header;
+    CCSDS_data_field* dataField;
 } CCSDS_packet;
 
-void printData(CCSDS_packet *packet);
-void ccsdsGetFullData(FILE *fp, CCSDS_packet *packet);
+/**
+ * Create the skeleton of a CCSDS_packet. Malloc primary_header and dataField and return the pointer
+ * @return CCSDS_packet
+ */
+CCSDS_packet ccsdsPacket_new(void);
 
+/**
+ * Create a CCSDS_primary_header
+ * @param version - 4.1.2.2 Packet Version Number (3 bits) Max value 7
+ * @param type - 4.1.2.3.2 Packet Type (1 bit) 0 -> PACKET_TYPE_TELEMETRY, 1 -> PACKET_TYPE_TELECOMMAND
+ * @param sec_header_flag - 4.1.2.3.3 Secondary Header Flag (1 bit) 0 -> SECONDAY_HEADER_FLAG_NOTEXIST,
+ *                                                                  1 -> SECONDAY_HEADER_FLAG_EXIST
+ * @param proc_id - 4.1.2.3.4 Application Process Identifier (11 bits) Max value 2047
+ * @param seq_flags - 4.1.2.4.2 Sequence Flags (2 bits) 00 -> SEQUENCE_FLAG_CONT
+ *                                                      01 -> SEQUENCE_FLAG_FIRST
+ *                                                      10 -> SEQUENCE_FLAG_LAST
+ *                                                      11 -> SEQUENCE_FLAG_LAST
+ * @param seq_cnt - 4.1.2.4.3 Packet Sequence Count or Packet Name (14 bits) Max value 16383
+ * @param length - 4.1.2.5 Packet Data Length (2 bytes)
+ * @return CCSDS_primary_header
+ */
 CCSDS_primary_header ccsdsPrimaryHeader(unsigned short version, unsigned short type, unsigned short sec_header_flag,
-                                  unsigned short proc_id, unsigned short seq_flags, unsigned short seq_cnt,
-                                  unsigned short length);      //Build a CCSDS_primary_header packet
+                                        unsigned short proc_id, unsigned short seq_flags, unsigned short seq_cnt,
+                                        unsigned short length);
 
+/**
+ * Create a CCSDS_secondary_header. Content is not defined in the recommended protocol, is user defined. In my case its
+ * fixed length to SECONDARY_HEADER_LENGTH with epoch and version.
+ * @param epoch - 4 bytes epoch, seconds since 1970
+ * @param majorVersionNumber - 1 byte
+ * @param minorVersionNumber - 1 byte
+ * @param patchVersionNumber - 1 byte
+ * @return CCSDS_secondary_header
+ */
 CCSDS_secondary_header ccsdsSecondaryHeader(unsigned int epoch, unsigned char majorVersionNumber,
                                             unsigned char minorVersionNumber, unsigned char patchVersionNumber);
-                                            // Build a CCSDS_secondary_header packet
 
-CCSDS_data_field ccsdsDataField(CCSDS_secondary_header secondaryHeader, void *data);    // Build data field given second header and pointer
+/**
+ * Build CCSDS_data_field given CCSDS_secondary_header and a pointer to userData
+ * @param secondaryHeader - Pointer to CCSDS_secondary_header, if there is no secondary_header put it to NULL
+ * @param data - Pointer to userData, length is defined in CCSDS_primary_header
+ * @return CCSDS_data_field
+ */
+CCSDS_data_field ccsdsDataField(CCSDS_secondary_header* secondaryHeader, void* data);
 
-CCSDS_packet ccsdsPacket(CCSDS_primary_header primaryHeader, CCSDS_data_field dataField);   // Build CCSDS packet
+/**
+ * Build CCSDS_packet
+ * @param primaryHeader - pointer to CCSDS_primary_header
+ * @param dataField - pointer to CCSDS_data_field
+ * @return CCSDS_packet
+ */
+CCSDS_packet ccsdsPacketBuild(CCSDS_primary_header* primaryHeader, CCSDS_data_field* dataField);    //TODO: if no userData put at least one byte
 
-void printSecondaryHeader(CCSDS_secondary_header secondaryHeader);        // Giver a secondary header print data
+// Given an I/O stream read primary header and put it into packet->primaryHeader
+void ccsdsReadPrimaryHeader(FILE *fp, CCSDS_packet *packet);
+
+// Given an I/O stream read secondary header and put it into packet->dataField->secondaryHeader
+void ccsdsReadSecondaryHeader(FILE *fp, CCSDS_packet *packet);
+
+// Given an I/O stream malloc length and print userData. Not recommended, only for testing. Big userData length can collapse system.
+void ccsdsReadFullUserData(FILE *fp, CCSDS_packet *packet);
+
+// Given an I/O stream print packet
+size_t write_packet(FILE *fp, CCSDS_packet *packet);
+
+// Given a CCSDS_secondary_header print its content
+void printSecondaryHeader(CCSDS_secondary_header* secondaryHeader);
+
+// Given a CCSDS_packet print the DataField Content. If the packet have secondary header
+// it prints too.
+void printDataField(CCSDS_packet* packet);
+
+// Given a CCSDS_primary_header print the primary header content
+void printPrimaryHeader(CCSDS_primary_header* packet);
 
 #endif
