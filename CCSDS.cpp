@@ -3,7 +3,6 @@
 //
 #include <stdio.h>
 #include <stdlib.h>
-#include <bits/types/struct_tm.h>
 #include <time.h>
 #include "CCSDS.h"
 
@@ -13,8 +12,8 @@
  */
 CCSDS_packet ccsdsPacket_new(){
     CCSDS_packet res;
-    res.primary_header = malloc(PRIMARY_HEADER_LENGTH);
-    res.dataField = malloc(2*sizeof(void *));
+    res.primary_header = (CCSDS_primary_header*) malloc(PRIMARY_HEADER_LENGTH);
+    res.dataField = (CCSDS_data_field*) malloc(2*sizeof(void *));
     return res;
 }
 
@@ -79,12 +78,12 @@ CCSDS_packet ccsdsPacketBuild(CCSDS_primary_header* primaryHeader, CCSDS_data_fi
 
 // Given an I/O stream read primary header and put it into packet->primaryHeader
 void ccsdsReadPrimaryHeader(FILE *fp, CCSDS_packet *packet){
-    unsigned char* buffer = malloc(PRIMARY_HEADER_LENGTH);
+    unsigned char* buffer = (unsigned char*) malloc(PRIMARY_HEADER_LENGTH);
 
     // Read 6 bytes from the file into the buffer
     if (fread(buffer, 1, PRIMARY_HEADER_LENGTH, fp) != PRIMARY_HEADER_LENGTH) {
         fprintf(stderr, "Error reading file\n");
-        return 1;
+        return;
     }
     
     packet->primary_header->version = (buffer[0] >> 5) & 0b111;
@@ -100,15 +99,15 @@ void ccsdsReadPrimaryHeader(FILE *fp, CCSDS_packet *packet){
 
 // Given an I/O stream read secondary header and put it into packet->dataField->secondaryHeader
 void ccsdsReadSecondaryHeader(FILE *fp, CCSDS_packet *packet){
-    packet->dataField->secondaryHeader = malloc(SECONDARY_HEADER_LENGTH);
+    packet->dataField->secondaryHeader = (CCSDS_secondary_header*) malloc(SECONDARY_HEADER_LENGTH);
     //fread(packet->dataField->secondaryHeader, SECONDARY_HEADER_LENGTH, 1, fp);
 
-    unsigned char* buffer = malloc(SECONDARY_HEADER_LENGTH);
+    unsigned char* buffer = (unsigned char*) malloc(SECONDARY_HEADER_LENGTH);
 
     // Read 6 bytes from the file into the buffer
     if (fread(buffer, 1, SECONDARY_HEADER_LENGTH, fp) != SECONDARY_HEADER_LENGTH) {
         fprintf(stderr, "Error reading file\n");
-        return 1;
+        return;
     }
 
     packet->dataField->secondaryHeader->epoch = (unsigned int) buffer[0] << 24 | 

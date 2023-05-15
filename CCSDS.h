@@ -1,6 +1,8 @@
 #ifndef CCSDS_h
 #define CCSDS_h
 
+#include "string.h"
+
 /*
 
 enum PACKET_TYPE{
