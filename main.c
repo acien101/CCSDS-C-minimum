@@ -18,7 +18,7 @@ void exampleGenPacketWithScdHeader();
 void exampleGenPacketWithoutScdHeader();
 void exampleReadPacketWithScdHeader();
 char readFile();
-
+void other();
 
 int main() {
     exampleGenPacketWithScdHeader();
@@ -31,7 +31,7 @@ void exampleGenPacketWithScdHeader(){
     time_t seconds_sinceepoch = time(NULL);
 
     // Create packet
-    char data[10] = {'P', 'R', 'U', 'E', 'B', 'A', '1', '2', '3', '4'};     // Some test userData
+    char data[10] = {'1', '2', '3', '4', '5', '6', '7', '8', '9', 'a'};     // Some test userData
     CCSDS_secondary_header secondaryHeader = ccsdsSecondaryHeader((unsigned int) seconds_sinceepoch, MAJORVERSIONNUMBER,
                                                                     MINORVERSIONNUMBER, PATCHVERSIONNUMBER);
     CCSDS_data_field dataField = ccsdsDataField(&secondaryHeader, &data);
@@ -44,17 +44,23 @@ void exampleGenPacketWithScdHeader(){
 
     CCSDS_packet packet = ccsdsPacketBuild(&primaryHeader, &dataField);
 
+    // Get packet length
+    unsigned short packet_length = PRIMARY_HEADER_LENGTH + dataLength;
+    
+    // Write packet into buffer using binary structure of CCSDS
+    void* buff = writeInBuffer(&packet);
+
     FILE *fp;
 
     fp = fopen("first.bin", "w");
-    int bytesWritten = write_packet(fp, &packet);
-    printf("Written successfully %zu elements \n", bytesWritten);
+    int bytesWritten = fwrite(buff, packet_length, 1, fp);
+    printf("Written successfully %d elements \n", bytesWritten*packet_length);
     fclose(fp);
 }
 
 void exampleGenPacketWithoutScdHeader(){
     // Create packet
-    char data[10] = {'P', 'R', 'U', 'E', 'B', 'A', '1', '2', '3', '4'};     // Some test userData
+    char data[10] = {'1', '2', '3', '4', '5', '6', '7', '8', '9', 'a'};     // Some test userData
 
     unsigned short dataLength = sizeof(data);      // Length of the userData field
 
@@ -66,10 +72,18 @@ void exampleGenPacketWithoutScdHeader(){
 
     CCSDS_packet packet = ccsdsPacketBuild(&primaryHeader, &dataField);
 
+    // Get packet length
+    unsigned short packet_length = PRIMARY_HEADER_LENGTH + dataLength;
+    packet_length += (primaryHeader.sec_header_flag == SECONDAY_HEADER_FLAG_EXIST)? SECONDARY_HEADER_LENGTH : 0;
+
+    // Write packet into buffer using binary structure of CCSDS
+    void* buff = writeInBuffer(&packet);
+
     FILE *fp;
+
     fp = fopen("first.bin", "w");
-    size_t bytesWritten = write_packet(fp, &packet);
-    printf("Written successfully %zu elements \n", bytesWritten);
+    int bytesWritten = fwrite(buff, packet_length, 1, fp);
+    printf("Written successfully %d elements \n", bytesWritten * packet_length);
     fclose(fp);
 }
 
@@ -85,6 +99,7 @@ void exampleReadPacketWithScdHeader(){
     }
 
     ccsdsReadPrimaryHeader(fp, &packet);// Read primary header (length fixed)
+    
     if(packet.primary_header->sec_header_flag == SECONDAY_HEADER_FLAG_EXIST) {
         ccsdsReadSecondaryHeader(fp, &packet);
     }
@@ -92,4 +107,7 @@ void exampleReadPacketWithScdHeader(){
 
     printPrimaryHeader(packet.primary_header);
     printDataField(&packet);
+    
+
+   fclose(fp);
 }

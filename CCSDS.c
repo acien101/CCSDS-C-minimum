@@ -79,13 +79,46 @@ CCSDS_packet ccsdsPacketBuild(CCSDS_primary_header* primaryHeader, CCSDS_data_fi
 
 // Given an I/O stream read primary header and put it into packet->primaryHeader
 void ccsdsReadPrimaryHeader(FILE *fp, CCSDS_packet *packet){
-    fread(packet->primary_header, PRIMARY_HEADER_LENGTH, 1, fp);
+    unsigned char* buffer = malloc(PRIMARY_HEADER_LENGTH);
+
+    // Read 6 bytes from the file into the buffer
+    if (fread(buffer, 1, PRIMARY_HEADER_LENGTH, fp) != PRIMARY_HEADER_LENGTH) {
+        fprintf(stderr, "Error reading file\n");
+        return 1;
+    }
+    
+    packet->primary_header->version = (buffer[0] >> 5) & 0b111;
+    packet->primary_header->type = (buffer[0] >> 4) & 0b1;
+    packet->primary_header->sec_header_flag = (buffer[0] >> 3) & 0b1;
+    packet->primary_header->proc_id = ((buffer[0] & 0b111) << 8) | buffer[1];
+    packet->primary_header->seq_flags = (buffer[2] >> 6) & 0b11;
+    packet->primary_header->seq_cnt = (buffer[2] & 0b111111) | buffer[3];
+    packet->primary_header->length = (unsigned short) buffer[4] << 8 | 
+                                     (unsigned short) buffer[5];
+    
 }
 
 // Given an I/O stream read secondary header and put it into packet->dataField->secondaryHeader
 void ccsdsReadSecondaryHeader(FILE *fp, CCSDS_packet *packet){
     packet->dataField->secondaryHeader = malloc(SECONDARY_HEADER_LENGTH);
-    fread(packet->dataField->secondaryHeader, SECONDARY_HEADER_LENGTH, 1, fp);
+    //fread(packet->dataField->secondaryHeader, SECONDARY_HEADER_LENGTH, 1, fp);
+
+    unsigned char* buffer = malloc(SECONDARY_HEADER_LENGTH);
+
+    // Read 6 bytes from the file into the buffer
+    if (fread(buffer, 1, SECONDARY_HEADER_LENGTH, fp) != SECONDARY_HEADER_LENGTH) {
+        fprintf(stderr, "Error reading file\n");
+        return 1;
+    }
+
+    packet->dataField->secondaryHeader->epoch = (unsigned int) buffer[0] << 24 | 
+                                                (unsigned int) buffer[1] << 16 | 
+                                                (unsigned int) buffer[2] << 8 | 
+                                                (unsigned int) buffer[3];
+                                                
+    packet->dataField->secondaryHeader->majorVersionNumber = (unsigned char) buffer[4];
+    packet->dataField->secondaryHeader->minorVersionNumber = (unsigned char) buffer[5];
+    packet->dataField->secondaryHeader->patchVersionNumber = (unsigned char) buffer[6];
 }
 
 // Given an I/O stream malloc length and print userData. Not recommended, only for testing. Big userData length can collapse system.
@@ -156,4 +189,64 @@ void printPrimaryHeader(CCSDS_primary_header* primaryHeader){
     printf("Sequence Flags: %d\n", primaryHeader->seq_flags);
     printf("Packet Sequence count: %d\n", primaryHeader->seq_cnt);
     printf("Packet Data length: %d\n", primaryHeader->length);
+}
+
+// Write ccsds packet into a pointer using the correct binary structure
+// Also convert little endian to big endian of the header due to cc3200 architecture.
+// Data field of the packet is only copied, not modified.
+void* writeInBuffer(CCSDS_packet *packet){
+
+    // Get packet length based on his header
+    unsigned short packet_length = PRIMARY_HEADER_LENGTH + packet->primary_header->length + 1;
+    packet_length += (packet->primary_header->sec_header_flag == SECONDAY_HEADER_FLAG_EXIST)? SECONDARY_HEADER_LENGTH : 0;
+
+    // Allocate memory
+    void* res = malloc(packet_length);
+
+    // Clean buffer
+    memset(res, 0, sizeof(packet_length));
+
+    // Write PRIMARY HEADER DATA
+    void* mod = res;     // Copy pointer for moving when copying
+    *(unsigned short*) mod = packet->primary_header->version << 13 |     // Assign first 2 bytes
+                             packet->primary_header->type << 12 |
+                             packet->primary_header->sec_header_flag << 11 |
+                             packet->primary_header->proc_id;
+    mod += sizeof(unsigned short);           // Move pointer for next 2 bytes
+
+    *(unsigned short*) mod = packet->primary_header->seq_flags << 14 |
+                             packet->primary_header->seq_cnt;
+    mod += sizeof(unsigned short);           // Move pointer for next 2 bytes
+
+    *(unsigned short*) mod = packet->primary_header->length;
+    mod += sizeof(unsigned short);   // Move pointer
+
+    // Write Secondary Header if present
+    if(packet->primary_header->sec_header_flag == SECONDAY_HEADER_FLAG_EXIST){
+        *(unsigned int*) mod = packet->dataField->secondaryHeader->epoch;
+        mod += sizeof(unsigned int);
+
+        *(unsigned char*) mod = packet->dataField->secondaryHeader->majorVersionNumber;
+        mod += sizeof(unsigned char);
+
+        *(unsigned char*) mod = packet->dataField->secondaryHeader->minorVersionNumber;
+        mod += sizeof(unsigned char);
+
+        *(unsigned char*) mod = packet->dataField->secondaryHeader->patchVersionNumber;
+        mod += sizeof(unsigned char);
+    }
+
+    // Copy datafield to packet (not modified)
+    memcpy(mod, packet->dataField->userData, packet->primary_header->length + 1);
+
+    //Swap primary and secondary header bytes
+    mod = res + 1;
+    unsigned char headers_size = packet_length - packet->primary_header->length - 1;
+    for(; mod < res + headers_size; mod+=2){  // Swap pair of bytes
+        unsigned char aux = *(unsigned char*)mod;
+        *(unsigned char*) mod = *(unsigned char*)(mod-1);
+        *(unsigned char*) (mod-1) = aux;
+    }
+
+    return res;
 }

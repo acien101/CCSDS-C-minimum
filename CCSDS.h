@@ -18,7 +18,7 @@ enum PACKET_TYPE{
 #define SEQUENCE_FLAG_FIRST 0b01                // 4.1.2.4.2.2 b)
 #define SEQUENCE_FLAG_LAST 0b10                 // 4.1.2.4.2.2 c)
 #define SEQUENCE_FLAG_UNSEGMENTED 0b11          // 4.1.2.4.2.2 d)
-#define SECONDARY_HEADER_LENGTH 8                // Number of bytes of secondary header
+#define SECONDARY_HEADER_LENGTH 7                // Number of bytes of secondary header
 #define PRIMARY_HEADER_LENGTH 6                 // Number of bytes of primary header
 
 typedef struct {
@@ -127,5 +127,13 @@ void printDataField(CCSDS_packet* packet);
 
 // Given a CCSDS_primary_header print the primary header content
 void printPrimaryHeader(CCSDS_primary_header* packet);
+
+/**
+ * Write ccsds packet into a pointer using the correct binary structure. Data field of the packet is not modified, only copied.
+ * @param pointer to CCSDS_packet
+ * @return pointer to address where binary packet is written. Length is set on ccsds packet header
+ */
+void* writeInBuffer(CCSDS_packet *packet);
+
 
 #endif
