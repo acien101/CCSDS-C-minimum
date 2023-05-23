@@ -23,6 +23,27 @@ enum PACKET_TYPE{
 #define SECONDARY_HEADER_LENGTH 7                // Number of bytes of secondary header
 #define PRIMARY_HEADER_LENGTH 6                 // Number of bytes of primary header
 
+#define CCSDS_VERSION_MASK 0b111
+#define CCSDS_VERSION_OFFSET 45         // Bits offst
+
+#define CCSDS_TYPE_MASK 0b1
+#define CCSDS_TYPE_OFFSET 44
+
+#define CCSDS_SEC_HEADER_FLAG_MASK 0b1
+#define CCSDS_SEC_HEADER_FLAG_OFFSET 43
+
+#define CCSDS_PROC_ID_MASK 0x7ff
+#define CCSDS_PROC_ID_OFFSET 32
+
+#define CCSDS_SEQ_FLAGS_MASK 0b11
+#define CCSDS_SEQ_FLAGS_OFFSET 30
+
+#define CCSDS_SEQ_CNT_MASK 0x3fff
+#define CCSDS_SEQ_CNT_OFFSET 16
+
+#define CCSDS_LENGTH_MASK 0xFFFF
+#define CCSDS_LENGTH_OFFSET 0
+
 typedef struct {
     unsigned short version : 3;
     unsigned short type : 1;
@@ -53,7 +74,13 @@ typedef struct {
 typedef struct{
     CCSDS_primary_header* primary_header;
     CCSDS_data_field* dataField;
+    uint16_t length;
 } CCSDS_packet;
+
+typedef struct{         // Structure used when creating the buffer and send it over different channels
+    uint8_t* packet;
+    uint16_t length;
+} CCSDS_buffer;
 
 /**
  * Create the skeleton of a CCSDS_packet. Malloc primary_header and dataField and return the pointer

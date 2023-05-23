@@ -72,7 +72,11 @@ CCSDS_data_field ccsdsDataField(CCSDS_secondary_header* secondaryHeader, void* d
  * @return CCSDS_packet
  */
 CCSDS_packet ccsdsPacketBuild(CCSDS_primary_header* primaryHeader, CCSDS_data_field* dataField) {   // Build CCSDS packet
-    CCSDS_packet res = {primaryHeader, dataField};
+    // Get packet length based on his header
+    unsigned short packet_length = PRIMARY_HEADER_LENGTH + primaryHeader->length + 1;
+    packet_length += (primaryHeader->sec_header_flag == SECONDAY_HEADER_FLAG_EXIST)? SECONDARY_HEADER_LENGTH : 0;
+
+    CCSDS_packet res = {primaryHeader, dataField, packet_length};
     return res;
 }
 
@@ -166,15 +170,18 @@ void printSecondaryHeader(CCSDS_secondary_header* secondaryHeader){
 
 // Given a CCSDS_packet print the DataField Content. If the packet have secondary header
 // it prints too.
-void printDataField(CCSDS_packet *packet){
+void printDataField(CCSDS_packet* packet){
     long i = packet->primary_header->length + 1;
     if(packet->primary_header->sec_header_flag == SECONDAY_HEADER_FLAG_EXIST){
         printSecondaryHeader(packet->dataField->secondaryHeader);
         i = packet->primary_header->length + 1 - SECONDARY_HEADER_LENGTH;
     }
+    
+    // Create a pointer
+    unsigned char* data = (unsigned char*) packet->dataField->userData;
 
     for(;i > 0; i--){
-        printf("GET: %c\n", *(unsigned char*)(packet->dataField->userData++));
+        printf("GET: %c\n", *(data++));
     }
 }
 
@@ -239,6 +246,7 @@ void* writeInBuffer(CCSDS_packet *packet){
     memcpy(mod, packet->dataField->userData, packet->primary_header->length + 1);
 
     //Swap primary and secondary header bytes
+
     mod = res + 1;
     unsigned char headers_size = packet_length - packet->primary_header->length - 1;
     for(; mod < res + headers_size; mod+=2){  // Swap pair of bytes
@@ -246,6 +254,6 @@ void* writeInBuffer(CCSDS_packet *packet){
         *(unsigned char*) mod = *(unsigned char*)(mod-1);
         *(unsigned char*) (mod-1) = aux;
     }
-
+    
     return res;
 }
